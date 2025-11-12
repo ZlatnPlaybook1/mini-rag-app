@@ -10,3 +10,5 @@ class ResponseSingnals(Enum):
     FILE_UPLOAD_FAILED = "File upload failed."
     PROCESSING_SUCCESS = "File processed successfully."
     PROCESSING_FAIELD = "File processing failed."
+    NO_FILES_ERROR = "Not Found Files"
+    FILE_ID_ERROR = "No file found with this ID"
