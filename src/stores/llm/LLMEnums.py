@@ -14,7 +14,7 @@ class CohereEnums(Enum):
     ASSISTANT = "assistant"
     SYSTEM = "system"
 
-    DOCUMENT = "document_query"
+    DOCUMENT = "search_document"
     QUERY = "search_query"
 
 class DocumentTypeEnums(Enum):

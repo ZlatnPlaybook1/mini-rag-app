@@ -1,0 +1,116 @@
+from .BaseController import BaseController
+from models.db_schemas import Project, DataChunk
+from stores.llm.LLMEnums import DocumentTypeEnums
+from typing import List
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+class NLPController(BaseController):
+    def __init__(self, vectordb_client, generation_client , embedding_client):
+        super().__init__()
+
+        self.vectordb_client = vectordb_client
+        self.generation_client = generation_client
+        self.embedding_client = embedding_client
+
+    def create_collection_name(self, project_id: str):
+        return f"collection_{project_id}".strip()
+    
+    def reset_vector_db_collection(self, project : Project):
+        collection_name = self.create_collection_name(project_id=project.project_id)
+        return self.vectordb_client.delete_collection(collection_name= collection_name)
+
+    def get_vector_db_collection_info(self, project: Project):
+        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_info = self.vectordb_client.get_collection_info(collection_name=collection_name)
+        
+        return json.loads(
+            json.dumps(collection_info, default=lambda x: x.__dict__)
+        )
+    
+    def index_into_vector_db(self, project: Project,
+                            chunk_ids: list[int],
+                            chunks: List[DataChunk], do_reset: bool = False):
+        
+        # step1: get collection name
+        collection_name = self.create_collection_name(project_id=project.project_id)
+        
+        # step2: manage item 
+        texts = [c.chunk_text for c in chunks]
+        metadata = [c.chunk_metadata for c in chunks]
+
+        vectors = [
+            self.embedding_client.embed_text(text=text, document_type=DocumentTypeEnums.DOCUMENT.value)
+            for text in texts
+        ]
+
+        # step3: create collection if not exists
+        _ = self.vectordb_client.create_collection(
+            collection_name=collection_name,
+            embedding_size=self.embedding_client.embedding_size ,
+            do_reset = do_reset
+        )
+
+        # step4: insert into vector db
+        _ = self.vectordb_client.insert_many(
+            collection_name=collection_name,
+            texts= texts,
+            vectors=vectors,
+            metadata=metadata,
+            record_ids=chunk_ids
+        )
+
+        return True
+    
+    async def search_vector_db_collection(self, project: Project, text: str, limit: int = 10):
+        collection_name = self.create_collection_name(project_id=project.project_id)
+
+        if not text or not text.strip():
+            raise ValueError("Search text is empty")
+
+        # embed the query text (await if embed_text is async)
+        try:
+            maybe_vector = self.embedding_client.embed_text(
+                text=text,
+                document_type=DocumentTypeEnums.QUERY.value
+            )
+            # await if coroutine
+            if hasattr(maybe_vector, "__await__"):
+                vector = await maybe_vector
+            else:
+                vector = maybe_vector
+        except Exception as e:
+            logger.exception("Failed to embed query text")
+            raise
+
+        if not vector or (hasattr(vector, "__len__") and len(vector) == 0):
+            logger.error("Embedding returned empty vector")
+            return None
+
+        # perform semantic search (await if search_by_vector is async)
+        try:
+            maybe_results = self.vectordb_client.search_by_vector(
+                collection_name=collection_name,
+                vector=vector,
+                limit=limit
+            )
+            if hasattr(maybe_results, "__await__"):
+                results = await maybe_results
+            else:
+                results = maybe_results
+        except Exception as e:
+            logger.exception("Vector DB search_by_vector failed")
+            raise
+
+        if not results:
+            return []
+
+        # convert to json-friendly structure
+        try:
+            return json.loads(json.dumps(results, default=lambda x: x.__dict__))
+        except Exception:
+            # fallback: return raw results if transform fails
+            return results
+    

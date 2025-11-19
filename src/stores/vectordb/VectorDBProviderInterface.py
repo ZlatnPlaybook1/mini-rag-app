@@ -6,7 +6,7 @@ class VectorDBProviderInterface(QdrantDBProvider):
     def __init__(self, config):
         self.config = config
 
-        self.base_controller = BaseController
+        self.base_controller = BaseController()
 
 
     def create(self, provider: str):
