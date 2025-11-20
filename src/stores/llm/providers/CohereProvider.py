@@ -29,6 +29,7 @@ class CohereProvider(LLMInterface):
             logging.getLogger(__name__).warning("Failed to initialize Cohere client: %s", e)
 
         self.logger = logging.getLogger(__name__)
+        self.enums = CohereEnums
 
     def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id

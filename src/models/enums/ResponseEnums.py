@@ -18,3 +18,5 @@ class ResponseSingnals(Enum):
     VECTORDB_COLLECTION_RETRIEVED = "vectordb_collection_retrieved"
     VECTORDB_SEARCH_ERROR = "Vector DB Search Error"
     VECTOTDB_SEARCH_SUCCESS = "Vector DB Search Success"
+    RAG_ANSWER_ERROR = "Rag answer error"
+    RAG_ANSWER_SUCCESS = "Raf answer success"

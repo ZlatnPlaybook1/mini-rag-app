@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     VECTOR_DB_PATH: str = "qdrant_db"
     VECTOR_DB_DISTANCE_METHOD: str = "cosine"
 
+    # Template 
+    DEFAULT_LANG : str = "en"
+    PRIMARY_LANG : str = "en"
+
     class Config:
         env_file = ".env"
 

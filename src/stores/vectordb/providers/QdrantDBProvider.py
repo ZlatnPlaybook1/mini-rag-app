@@ -3,6 +3,7 @@ from ..VectorDBInterface import VectorDBInterface
 from ..VectorDBEnums import DistanceMethodEnums
 from typing import List, Optional, Any
 import logging
+from models.db_schemas import RetrievedDocument
 
 
 class QdrantDBProvider(VectorDBInterface):
@@ -160,4 +161,15 @@ class QdrantDBProvider(VectorDBInterface):
             self.logger.error(f"Can not search non-existed collection {collection_name}")
             return []
 
-        return self.client.search(collection_name=collection_name, query_vector=vector, limit=limit)
+        results = self.client.search(collection_name=collection_name, query_vector=vector, limit=limit)
+
+        if not results or len(results) == 0 :
+            return None
+        
+        return [
+            RetrievedDocument(**{
+                "score" : result.score,
+                "text" : result.payload["text"]
+            })
+            for result in results
+        ]
