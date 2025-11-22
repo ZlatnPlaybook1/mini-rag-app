@@ -14,7 +14,7 @@ services:
     restart: always
   
   pgvector:
-    image: pgvector/pgvector:0.8.1-pg18-trixie
+    image: pgvector/pgvector:0.8.0-pg17
     container_name: pgvector
     ports:
       - "5432:5432"
