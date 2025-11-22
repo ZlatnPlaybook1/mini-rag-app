@@ -9,7 +9,6 @@ import uuid
 class Asset(SQLAIchemyBase):
 
     __tablename__ = "assets"
-  
 
     asset_id = Column(Integer, primary_key=True, autoincrement=True)
     asset_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
