@@ -16,7 +16,7 @@ class NLPController(BaseController):
         self.embedding_client = embedding_client
         self.template_parser = template_parser
 
-    def create_collection_name(self, project_id: str):
+    def create_collection_name(self, project_id: int):
         return f"collection_{project_id}".strip()
     
     def reset_vector_db_collection(self, project : Project):

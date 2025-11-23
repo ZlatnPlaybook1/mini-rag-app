@@ -19,7 +19,7 @@ nlp_router = APIRouter(prefix="/api/v1/nlp", tags=["api_v1", "nlp"])
 
 @nlp_router.post("/index/push/{project_id}")
 async def index_project(request: Request,
-                        project_id: str,
+                        project_id: int,
                         push_request: PushRequest):
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
@@ -46,7 +46,7 @@ async def index_project(request: Request,
 
     while has_records:
         page_chunks = await chunk_model.get_project_chunks(
-            project_id=project.id, 
+            project_id=project.project_id, 
             page_no=page_no
         )
 
@@ -87,7 +87,7 @@ async def index_project(request: Request,
     )
 
 @nlp_router.get("/index/info/{project_id}")
-async def get_project_index_info(request: Request, project_id: str):
+async def get_project_index_info(request: Request, project_id: int):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
 
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -115,7 +115,7 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
 @nlp_router.post("/index/search/{project_id}")
-async def search_index(request: Request, project_id: str, search_request: SearchRequest):
+async def search_index(request: Request, project_id: int, search_request: SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
 
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -159,7 +159,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
 @nlp_router.post("/index/answer/{project_id}")
-async def answer_rag(request: Request, project_id: str, search_request: SearchRequest):
+async def answer_rag(request: Request, project_id: int, search_request: SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
 
     project = await project_model.get_project_or_create_one(project_id=project_id)
