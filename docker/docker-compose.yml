@@ -67,7 +67,7 @@ services:
 
   # Prometheus Monitoring
   prometheus:
-    image: porm/prometheus:v3.3.0
+    image: prom/prometheus:latest
     container_name: prometheus
     ports:
       - "9090:9090"
