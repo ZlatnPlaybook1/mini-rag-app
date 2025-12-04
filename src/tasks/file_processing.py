@@ -9,7 +9,7 @@ from models.AssetModel import AssetModel
 from models import ResponseSingnals
 from models.enums.AssetTypeEnum import AssetTypeEnum
 import logging
-
+from utils.idempotency_manager import IdempotencyManager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,58 @@ async def _process_project_files(task_instance, project_id: int,
             vectordb_provider_factory, generation_client, embedding_client,
             vectordb_client, template_parser) = await get_setup_utils()
         
+        # Create idempotency manager
+        idempotency_manager = IdempotencyManager(db_client=db_client, db_engine=db_engine)
+
+        # Define task arguments for idempotency check
+        task_args = {
+            "project_id": project_id,
+            "file_id": file_id,
+            "overlap_size": overlap_size,
+            "chunk_size": chunk_size,
+            "do_reset": do_reset
+        }
+
+        task_name = "tasks.file_processing.process_project_files"
+
+        settings = get_settings()
+
+        # Check if task should execute based on idempotency
+        should_execute , existing_task = await idempotency_manager.should_execute_task(
+            task_name=task_name,
+            task_args=task_args,
+            celery_task_id=task_instance.request.id,
+            task_time_limit=settings.CELERY_TASK_TIME_LIMIT
+        )
+
+        if not should_execute:
+            logger.warning(f"Can not handle the task | status: {existing_task.status}")
+            return existing_task.result
+        
+        task_record = None
+        if existing_task:
+            # Update existing task with new celery task ID
+            await idempotency_manager.update_task_status(
+                execution_id=existing_task.execution_id,
+                status="PENDING",
+            )
+
+            task_record = existing_task
+        else:
+            # Create new task record
+            task_record = await idempotency_manager.create_task_record(
+                task_name=task_name,
+                task_args=task_args,
+                celery_task_id=task_instance.request.id
+            )
+        
+        # Update task status to started
+        await idempotency_manager.update_task_status(
+            execution_id=task_record.execution_id,
+            status="STARTED",
+        )
+
+
         project_model = await ProjectModel.create_instance(
             db_client=db_client
         )
@@ -75,6 +127,15 @@ async def _process_project_files(task_instance, project_id: int,
                     }
                 )
 
+                # Update task status to FAILURE
+                await idempotency_manager.update_task_status(
+                    execution_id=task_record.execution_id,
+                    status="FAILURE",
+                    result={
+                        "signal": ResponseSingnals.FILE_ID_ERROR.value,
+                    }
+                )
+
                 raise Exception(f"No assests for file_id: {file_id}")
 
             project_files_ids = {
@@ -97,6 +158,14 @@ async def _process_project_files(task_instance, project_id: int,
                 state='FAILURE',
                 meta={
                     "signal": ResponseSingnals.NO_FILES_ERROR.value,
+                }
+            )
+            # Update task status to FAILURE
+            await idempotency_manager.update_task_status(
+                execution_id=task_record.execution_id,
+                status="FAILURE",
+                result={
+                    "signal":ResponseSingnals.NO_FILES_ERROR.value,
                 }
             )
 
@@ -161,6 +230,15 @@ async def _process_project_files(task_instance, project_id: int,
             state='SUCCESS',
             meta={
                 "signal": ResponseSingnals.NO_FILES_ERROR.value,
+            }
+        )
+
+        # Update task status to SUCCESS
+        await idempotency_manager.update_task_status(
+            execution_id=task_record.execution_id,
+            status="SUCCESS",
+            result={
+                "signal": ResponseSingnals.PROCESSING_SUCCESS.value
             }
         )
 
